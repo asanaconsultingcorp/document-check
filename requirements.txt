@@ -3,3 +3,4 @@ matplotlib
 streamlit
 plotly
 pyvis
+streamlit_js_eval

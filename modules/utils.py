@@ -21,15 +21,25 @@ def getDataFrame(_session, query):
     rows = _session.sql(query).collect()
     return pd.DataFrame(rows).convert_dtypes()
 
+def sqlQuery(_session, query):
+    df_record = _session.sql(query).collect()
+    #st.write(df_record)
+    return df_record
+
 # ==========================================================================
 
 @st.cache_resource(show_spinner="Connecting to Snowflake...", max_entries=10)
-def getSession(account, user, _password):
+def getSession(account, user, _password, dbName, schemaName, roleName, warehouseName, primaryStageName):
     try:
         return Session.builder.configs({
             "account": account,
             "user": user,
-            "password": _password
+            "password": _password,
+            "database": dbName,
+            "schema": schemaName,
+            "role": roleName,
+            "warehouse": warehouseName,
+            "primaryStage": primaryStageName
         }).create()
     except:
         return None
@@ -42,7 +52,13 @@ def getLocalSession():
     return getSession(
         parser.get(section, "accountname"),
         parser.get(section, "username"),
-        os.environ['SNOWSQL_PWD'])
+        os.environ['SNOWSQL_PWD'],
+        parser.get(section, "dbname"),
+        parser.get(section, "schemaname"),
+        parser.get(section, "rolename"),
+        parser.get(section, "warehousename"),
+        parser.get(section, "primarystagename")
+    )
 
 def getRemoteSession():
     session = None

@@ -11,7 +11,6 @@ st.set_page_config(layout="wide")
 st.title("Hierarchical Data Viewer")
 st.caption("Display your hierarchical data with charts and graphs.")
 
-
 with st.sidebar:
     session = (utils.getLocalSession()
         if utils.isLocal()
