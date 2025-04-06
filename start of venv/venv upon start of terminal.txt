@@ -1,0 +1,132 @@
+C:\users\ankur\AppData\Local\Programs\Python\Python312\python -m venv venv
+venv/scripts/activate
+python.exe -m pip install --upgrade pip
+pip install "snowflake-connector-python[pandas]"
+pip install snowflake-connector-python
+pip install snowflake-snowpark-python
+pip install -r requirements.txt
+
+
+
+
+
+
+#c:\projects\streamlit-for-snowflake-test\<MYPATH>\venv\scripts\python.exe -m pip install --upgrade pip
+
+C:\users\ankur\AppData\Local\Programs\Python\Python312\python -m venv venv
+venv/scripts/activate
+
+
+C:\users\ankur\AppData\Local\Programs\Python\Python39\python -m venv venv
+venv/scripts/activate
+
+
+python.exe -m pip install --upgrade pip
+c:\projects\streamlit-for-snowflake-test\first-app\venv\scripts\python.exe -m pip install --upgrade pip
+c:\projects\streamlit-for-snowflake-test\connection\venv\scripts\python.exe -m pip install --upgrade pip
+c:\projects\streamlit-for-snowflake-test\snowflake\venv\scripts\python.exe -m pip install --upgrade pip
+c:\projects\streamlit-for-snowflake-test\demo-self-driving-master\venv\scripts\python.exe -m pip install --upgrade pip
+c:\projects\streamlit-for-snowflake-test\real-estate\venv\scripts\python.exe -m pip install --upgrade pip
+c:\projects\streamlit-for-snowflake-test\2-shared-streamlit-web-apps\05-real-estate-props\venv\scripts\python.exe -m pip install --upgrade pip
+
+#snowpark correctly installs right version of pyarrow, so DO NOT re-install pyarrow after installing snowpark
+#pip install pandas
+#pip install "snowflake-connector-python[pandas]" #(https://stackoverflow.com/questions/62439547/snowflake-python-pandas-connector-unknown-error-using-fetch-pandas-all)
+
+pip install -r requirements.txt
+py -m pip install msvc-runtime 
+
+/*
+pip uninstall rpds
+pip uninstall rpds-py
+pip install rpds
+pip install rpds-py==0.18.1
+
+pip install snowflake-connector-python
+pip install snowflake-snowpark-python
+*/
+
+--https://magjac.com/graphviz-visual-editor/
+
+
+http://marketplace.visualstudio.com/items?itemName=VisualStudioExptTeam.vscodeintellicode
+
+https://towardsdatascience.com/coding-ml-tools-like-you-code-ml-models-ddba3357eace
+
+
+
+/*PYTHON OPENAI*/
+from openai import OpenAI
+client = OpenAI()
+completion = client.chat.completions.create(
+    model="gpt-4o",
+    store=True,
+    messages=[
+        {"role": "user", "content": "write a haiku about ai"}
+    ]
+)
+
+
+/*QUICKSTARTS*/
+https://quickstarts.snowflake.com
+
+
+/*GITHUB SNOWFLAKE QUICKSTARTS*/
+https://github.com/Snowflake-Labs/sfquickstarts
+
+
+/*LLAMA INDEX ISSUE*/
+https://docs.llamaindex.ai/en/stable/module_guides/supporting_modules/service_context_migration/
+
+
+/*FROSTY EXAMPLE TUTORIAL*/
+https://github.com/Snowflake-Labs/sfguide-frosty-llm-chatbot-on-streamlit-snowflake
+
+
+/*CORTEX AI EXAMPLE TUTORIAL*/
+https://quickstarts.snowflake.com/guide/getting_started_with_cortex_analyst/?index=../..index#0
+
+
+/*ORIGINAL RAG TUTORIAL*/
+https://github.com/sfc-gh-takmal/sfguide-blog-ai-assistant/blob/main/README.md
+
+
+/*CORTEX AI RAG USING STREAMLIT and SNOWFLAKE CORTEX*/
+https://quickstarts.snowflake.com/guide/ask_questions_to_your_own_documents_with_snowflake_cortex_search/?index=..%2F..index#0
+
+
+/*GETTING SNOWSQL TO WORK*/
+https://geohernandez.net/getting-started-with-snowsql-connecting-to-your-snowflake-account/#:~:text=In%20this%20quick%20guide%2C%20we%E2%80%99ll%20walk%20through%20the,settings%2C%20and%20authenticate%20securely%20to%20your%20Snowflake%20account.
+
+
+/*CYBERSYN DASHBOARD EXAMPLE*/
+https://quickstarts.snowflake.com/guide/getting_started_with_snowpark_for_python_streamlit/?index=..%2F..index#0
+
+
+/*DATA MAPPING IN SNOWFLAKE NATIVE APPS USING STREAMLIT*/
+https://quickstarts.snowflake.com/guide/data_mapping_in_native_apps/index.html#0
+
+
+/*STREAMLIT AND DOCUMENT AI*/
+https://quickstarts.snowflake.com/guide/automating_document_processing_workflows_with_document_ai/index.html#0
+
+
+/*st.file_uploader - STREAMLIT FOR SNOWFLAKE*/
+https://dev.to/tsubasa_tech/file-upload-and-download-with-streamlit-in-snowflake-1joi
+
+
+/*SNOWPARK FOR PYTHON DEVELOPER GUIDE*/
+https://docs.snowflake.com/en/developer-guide/snowpark/python/index.html
+
+
+/*SNOWPARK FOR PYTHON API REFERENCE*/
+https://docs.snowflake.com/en/developer-guide/snowpark/reference/python/index.html
+
+
+/*PLOOMBER.IO*/
+https://ploomber.io/
+
+
+/*SNOWPARK EXECUTE SQL*/
+https://thinketl.com/how-to-execute-sql-statements-in-snowflake-snowpark/
+

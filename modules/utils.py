@@ -38,8 +38,8 @@ def getSession(account, user, _password, dbName, schemaName, roleName, warehouse
             "database": dbName,
             "schema": schemaName,
             "role": roleName,
-            "warehouse": warehouseName,
-            "primaryStage": primaryStageName
+            "warehouse": warehouseName
+            #,            "primaryStage": primaryStageName
         }).create()
     except:
         return None

@@ -9,6 +9,7 @@ import modules.formats as formats
 import modules.charts as charts
 import modules.utils as utils
 import uuid
+from snowflake.snowpark import FileOperation
 
 st.set_page_config(layout="wide")
 st.title("Document Uploader")
@@ -53,14 +54,34 @@ def destroySessionState(_session):
     st.session_state.user_name = ""
     st.session_state.organization_id = "-1"
     st.session_state.organization_name = ""
-    _session = None
+    _session.close()
+    _session = None    
     streamlit_js_eval(js_expressions="parent.window.location.reload()")
 
-def createNewBatchDetail(_session, batch_header_id, thisFile):
+def putFileInStage(_session, stagePath, thisFile):
     bytes_data = thisFile.read()
     filename = thisFile.name
     filetype = thisFile.type
+    filesize = thisFile.size    
+    #st.write("filename: " + filename)
+
+    #stageQuery = """
+    #    PUT file://C:\\testdelete\\abc.pdf @DOC_AI_DB.DOC_AI_SCHEMA.DOC_AI_STAGE overwrite=true auto_compress=false;
+    #"""
+    #st.write(stageQuery)
+    #utils.sqlQuery(_session, stageQuery)
+    
+    stage_location = '@DOC_AI_STAGE/' + stagePath + '/' + filename
+    #st.write(stage_location)    
+    FileOperation(_session).put_stream(input_stream=thisFile, stage_location=stage_location, auto_compress=False)
+
+
+def createNewBatchDetail(_session, batch_header_id, thisFile):
+    #bytes_data = thisFile.read()
+    filename = thisFile.name
+    filetype = thisFile.type
     filesize = thisFile.size
+    
     #st.write(thisFile)
     
     query = """
@@ -77,25 +98,28 @@ def createNewBatch(_session):
     numberfiles = len(uploaded_files)
     if  numberfiles > 0:
         new_batch_header_id = uuid.uuid4()
-        
+        new_batch_name = str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
+                
         query = """
             INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_HEADER_STATUS_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
-            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + """_BATCH', 'U', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
+            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', 'U', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
             """
         #st.write(query)
         utils.sqlQuery(_session, query)
         
         for uploaded_file in uploaded_files:
             createNewBatchDetail(_session, new_batch_header_id, uploaded_file)
+            #st.write("New Batch Name: " + new_batch_name)
+            putFileInStage(_session, new_batch_name, uploaded_file)
             
             
 initializeSessionState()
 
 with st.sidebar:
-    session = (utils.getLocalSession()
-        if utils.isLocal()
-        else utils.getRemoteSession())
-
+    #session = (utils.getLocalSession()
+    #    if utils.isLocal()
+    #    else utils.getRemoteSession())
+    session = utils.getLocalSession()
     
     df_user = None
     df_orig = None
@@ -131,13 +155,7 @@ if session is not None:
         
     with tabUpload:
         st.dataframe(df_user, use_container_width=True)
-        
-        #uploaded_file = st.file_uploader("Upload PDF File", type=["pdf"], accept_multiple_files=False)
-        #if uploaded_file is not None:
-        #    filename = StringIO(uploaded_file.getvalue().decode("utf-8"))
-            
         uploaded_files = st.file_uploader("Upload PDF Files", type=["pdf"], accept_multiple_files=True)
-        
         st.button("Create New Batch", on_click=createNewBatch, args=(session,), use_container_width=False)
         
         if st.session_state.createNewBatchButtonClicked:
@@ -159,7 +177,7 @@ if session is not None:
             AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
             ORDER BY BATCH_CREATED_ON DESC
             """
-        #st.write(query)
+            
         df_records = utils.sqlQuery(session, query)
         st.write(df_records)
         
@@ -173,6 +191,6 @@ if session is not None:
             AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
             ORDER BY BATCH_CREATED_ON DESC
             """
-        #st.write(query)
+            
         df_records = utils.sqlQuery(session, query)
         st.write(df_records)
