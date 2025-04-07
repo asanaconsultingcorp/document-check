@@ -98,11 +98,12 @@ def createNewBatch(_session):
     numberfiles = len(uploaded_files)
     if  numberfiles > 0:
         new_batch_header_id = uuid.uuid4()
-        new_batch_name = str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
+        new_batch_name =  str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
+        new_batch_path = str(st.session_state.organization_id) + "/" + new_batch_name
                 
         query = """
-            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_HEADER_STATUS_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
-            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', 'U', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
+            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
+            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', '""" + new_batch_path + """', 'U', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
             """
         #st.write(query)
         utils.sqlQuery(_session, query)
@@ -150,10 +151,10 @@ with st.sidebar:
             st.write("Organization missing")
             
 if session is not None:
-    tabUpload, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
-        ["Upload", "Unprocessed Batches", "Processed Batches"])
+    tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
+        ["Create New Batch", "Unprocessed Batches", "Processed Batches"])
         
-    with tabUpload:
+    with tabCreateNewBatch:
         st.dataframe(df_user, use_container_width=True)
         uploaded_files = st.file_uploader("Upload PDF Files", type=["pdf"], accept_multiple_files=True)
         st.button("Create New Batch", on_click=createNewBatch, args=(session,), use_container_width=False)
