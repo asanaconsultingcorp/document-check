@@ -85,8 +85,8 @@ def createNewBatchDetail(_session, batch_header_id, thisFile):
     #st.write(thisFile)
     
     query = """
-        INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_DETAIL(BATCH_HEADER_ID, FILE_NAME, FILE_TYPE, FILE_SIZE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
-        VALUES('""" + str(batch_header_id) + """', '""" + str(filename) + """', '""" + str(filetype) + """', """ + str(filesize) + """, '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
+        INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_DETAIL(BATCH_HEADER_ID, FILE_NAME, FILE_TYPE, FILE_SIZE, BATCH_DETAIL_STATUS_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
+        VALUES('""" + str(batch_header_id) + """', '""" + str(filename) + """', '""" + str(filetype) + """', """ + str(filesize) + """, 'U', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
         """
     #st.write(query)
     #st.write(bytes_data)
@@ -132,7 +132,7 @@ with st.sidebar:
         
     hasUsername = session is not None and username is not None and len(username) > 0
     if hasUsername:
-        df_user = utils.getDataFrame(session, f"select user_id, user_name, organization_id, organization_name from DOC_AI_DB.SECURITY_SCHEMA.USERS_ORGANIZATIONS where user_name='{username}'")
+        df_user = utils.getDataFrame(session, f"select user_id, user_name, organization_id, organization_name from DOC_AI_DB.SECURITY_SCHEMA.USERS_ORGANIZATIONS_VIEW where user_name='{username}'")
                 
         if df_user.shape[0] > 0:
             st.session_state.user_id = df_user.iloc[0, 0]
@@ -173,7 +173,7 @@ if session is not None:
         
         query = """
             SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
-            FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION
+            FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
             WHERE BATCH_HEADER_STATUS_CODE='U'
             AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
             ORDER BY BATCH_CREATED_ON DESC
@@ -187,7 +187,7 @@ if session is not None:
         
         query = """
             SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
-            FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION
+            FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
             WHERE BATCH_HEADER_STATUS_CODE='P'
             AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
             ORDER BY BATCH_CREATED_ON DESC
