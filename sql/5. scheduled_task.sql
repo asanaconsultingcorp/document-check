@@ -25,6 +25,9 @@ AS
 DECLARE
     job_uuid STRING;
     sql_query STRING;
+
+    c1 CURSOR FOR SELECT BATCH_HEADER_ID, BATCH_PATH, FILE_NAME FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_DETAIL_ORGANIZATION_VIEW
+        ORDER BY BATCH_HEADER_ID, BATCH_PATH, FILE_NAME;
 BEGIN
     /* These two lines seem like the wrong way to handle insert and return value */
     --CALL DOC_AI_DB.SCHEDULED_TASKS.INSERT_SCHEDULED_TASK_MANIFEST();
@@ -37,8 +40,19 @@ BEGIN
         CURRENT_USER(), CURRENT_USER())';
     EXECUTE IMMEDIATE :sql_query;
 
+    CREATE OR REPLACE TABLE DOC_AI_DB.STREAMLIT_SCHEMA.TEST_TABLE
+    (
+        A_BATCH_HEADER_ID STRING,
+        A_BATCH_PATH STRING,
+        A_FILE_NAME STRING
+    );
 
-    
+    FOR record in c1 DO
+        sql_query := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.TEST_TABLE
+            VALUES(''' || record.BATCH_HEADER_ID || ''',''' ||  record.BATCH_PATH || ''',''' ||  record.FILE_NAME || ''');';
+        EXECUTE IMMEDIATE :sql_query;
+    END FOR;
+
 
     /*
     WITH CTE_STAGED AS
