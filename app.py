@@ -59,10 +59,11 @@ def destroySessionState(_session):
     streamlit_js_eval(js_expressions="parent.window.location.reload()")
 
 def putFileInStage(_session, stagePath, thisFile):
+    
     bytes_data = thisFile.read()
     filename = thisFile.name
     filetype = thisFile.type
-    filesize = thisFile.size    
+    filesize = thisFile.size
     #st.write("filename: " + filename)
 
     #stageQuery = """
@@ -99,7 +100,7 @@ def createNewBatch(_session):
     if  numberfiles > 0:
         new_batch_header_id = uuid.uuid4()
         new_batch_name =  str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
-        new_batch_path = str(st.session_state.organization_id) + "/" + new_batch_name
+        new_batch_path = str(datetime.today().strftime('%Y%m%d')) + "/" + str(st.session_state.organization_id) + "/" + new_batch_name
                 
         query = """
             INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
@@ -111,7 +112,7 @@ def createNewBatch(_session):
         for uploaded_file in uploaded_files:
             createNewBatchDetail(_session, new_batch_header_id, uploaded_file)
             #st.write("New Batch Name: " + new_batch_name)
-            putFileInStage(_session, new_batch_name, uploaded_file)
+            putFileInStage(_session, new_batch_path, uploaded_file)
             
             
 initializeSessionState()

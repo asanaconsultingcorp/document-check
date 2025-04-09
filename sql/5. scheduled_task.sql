@@ -26,31 +26,75 @@ DECLARE
     job_uuid STRING;
     sql_query STRING;
 
-    c1 CURSOR FOR SELECT BATCH_HEADER_ID, BATCH_PATH, FILE_NAME FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_DETAIL_ORGANIZATION_VIEW
+/*
+BATCH_HEADER_ID, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS, ORGANIZATION_ID, ORGANIZATION_NAME, 
+    BATCH_NAME, BATCH_PATH, CANCELLED_DATE, PROCESSED_DATE, BATCH_CREATED_ON, COUNT(DISTINCT BATCH_DETAIL_ID) AS BATCH_COUNT
+*/
+    /*
+    c1 CURSOR FOR SELECT BATCH_HEADER_ID, BATCH_DETAIL_ID, BATCH_PATH, FILE_NAME 
+        FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_DETAIL_ORGANIZATION_VIEW
+        WHERE BATCH_HEADER_STATUS_CODE = 'U'
         ORDER BY BATCH_HEADER_ID, BATCH_PATH, FILE_NAME;
+    */
+    
+    c1 CURSOR FOR SELECT BATCH_HEADER_ID, ORGANIZATION_ID, BATCH_PATH
+        FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
+        WHERE BATCH_HEADER_STATUS_CODE = 'U'
+        ORDER BY BATCH_HEADER_ID, ORGANIZATION_ID, BATCH_PATH;
+
+    c2 CURSOR FOR SELECT BATCH_HEADER_ID, BATCH_DETAIL_ID, BATCH_PATH, FILE_NAME 
+        FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_DETAIL_ORGANIZATION_VIEW
+        WHERE BATCH_HEADER_STATUS_CODE = 'U'
+        AND BATCH_HEADER_ID = ?
+        ORDER BY BATCH_HEADER_ID, BATCH_PATH, FILE_NAME;
+    
+    current_batch_header_id STRING;
+    current_organization_id STRING;
+    current_batch_path STRING;
+    current_batch_detail_id STRING;
+    current_batch_file_name STRING;
+
+    files_processed INT;
+    files_successful INT;
+    files_failed INT;
 BEGIN
     /* These two lines seem like the wrong way to handle insert and return value */
     --CALL DOC_AI_DB.SCHEDULED_TASKS.INSERT_SCHEDULED_TASK_MANIFEST();
     --select $1 into :job_uuid from table(result_scan(last_query_id()));
 
-    --INSERT RECORD INTO SCHEDULED_TASK_MANIFEST
+    --INSERT INTO SCHEDULED_TASK_MANIFEST
     job_uuid := UUID_STRING();
     sql_query := 'INSERT INTO DOC_AI_DB.SCHEDULED_TASKS.SCHEDULED_TASK_MANIFEST(ID, START_DATE_TIME, JOB_NAME, CREATED_BY, MODIFIED_BY) 
         VALUES (''' || job_uuid || ''', CURRENT_TIMESTAMP(), CONCAT(''PROCESS_BATCHES_'',TO_CHAR(CURRENT_TIMESTAMP(), ''YYYYMMDD_HH24MISS_FF3'')), 
         CURRENT_USER(), CURRENT_USER())';
     EXECUTE IMMEDIATE :sql_query;
 
-    CREATE OR REPLACE TABLE DOC_AI_DB.STREAMLIT_SCHEMA.TEST_TABLE
-    (
-        A_BATCH_HEADER_ID STRING,
-        A_BATCH_PATH STRING,
-        A_FILE_NAME STRING
-    );
+    files_processed := 0;
+    files_successful := 0;
+    files_failed := 0;
 
-    FOR record in c1 DO
-        sql_query := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.TEST_TABLE
-            VALUES(''' || record.BATCH_HEADER_ID || ''',''' ||  record.BATCH_PATH || ''',''' ||  record.FILE_NAME || ''');';
+    FOR record_loop1 in c1 DO
+        current_batch_header_id := record_loop1.BATCH_HEADER_ID;
+        current_organization_id := record_loop1.ORGANIZATION_ID;
+        current_batch_path := record_loop1.BATCH_PATH;
+
+        
+        OPEN c2 using (:current_batch_header_id);        
+        FOR record_loop2 in c2 DO
+            current_batch_detail_id := record_loop2.BATCH_DETAIL_ID;
+            current_batch_file_name := record_loop2.FILE_NAME;
+
+            sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_DETAIL 
+                SET PROCESSED_DATE = CURRENT_TIMESTAMP(), BATCH_DETAIL_STATUS_CODE=''P''
+                WHERE ID = ''' || current_batch_detail_id || ''';';
+            EXECUTE IMMEDIATE :sql_query;
+        END FOR;
+
+        sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER
+            SET PROCESSED_DATE = CURRENT_TIMESTAMP(), BATCH_HEADER_STATUS_CODE=''P''
+            WHERE ID = ''' || current_batch_header_id || ''';';
         EXECUTE IMMEDIATE :sql_query;
+    
     END FOR;
 
 
