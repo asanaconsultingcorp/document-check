@@ -43,6 +43,8 @@ def initializeSessionState():
         st.session_state.user_id = "-1"
     if 'user_name' not in st.session_state:
         st.session_state.user_name = ""
+    if 'is_admin' not in st.session_state:
+        st.session_state.is_admin = ""
     if 'organization_id' not in st.session_state:
         st.session_state.organization_id = "-1"
     if 'organization_name' not in st.session_state:
@@ -52,6 +54,7 @@ def destroySessionState(_session):
     st.session_state.createNewBatchButtonClicked = False
     st.session_state.user_id = "-1"
     st.session_state.user_name = ""
+    st.session_state.is_admin = "N"
     st.session_state.organization_id = "-1"
     st.session_state.organization_name = ""
     _session.close()
@@ -133,17 +136,19 @@ with st.sidebar:
         
     hasUsername = session is not None and username is not None and len(username) > 0
     if hasUsername:
-        df_user = utils.getDataFrame(session, f"select user_id, user_name, organization_id, organization_name from DOC_AI_DB.SECURITY_SCHEMA.USERS_ORGANIZATIONS_VIEW where user_name='{username}'")
+        df_user = utils.getDataFrame(session, f"select user_id, user_name, is_admin, organization_id, organization_name from DOC_AI_DB.SECURITY_SCHEMA.USERS_ORGANIZATIONS_VIEW where user_name='{username}'")
                 
         if df_user.shape[0] > 0:
             st.session_state.user_id = df_user.iloc[0, 0]
             st.session_state.user_name = df_user.iloc[0, 1]
-            st.session_state.organization_id = df_user.iloc[0, 2]
-            st.session_state.organization_name = df_user.iloc[0, 3]
+            st.session_state.is_admin = df_user.iloc[0, 2]
+            st.session_state.organization_id = df_user.iloc[0, 3]
+            st.session_state.organization_name = df_user.iloc[0, 4]
             
             
             st.write("User Name: " + st.session_state.user_name)
             st.write("Organization Name: " + st.session_state.organization_name)
+            st.write("Is Admin: " + st.session_state.is_admin)
             #st.write("User ID: " + st.session_state.user_id)
             #st.write("Organization ID: " + st.session_state.organization_id)
             
@@ -152,11 +157,21 @@ with st.sidebar:
             st.write("Organization missing")
             
 if session is not None:
-    tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
-        ["Create New Batch", "Unprocessed Batches", "Processed Batches"])
+    
+    if st.session_state.is_admin == 'Y':
+        tabAdmin, tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
+            ["Administration", "Create New Batch", "Unprocessed Batches", "Processed Batches"])
         
+        with tabAdmin:
+            st.dataframe(df_user, use_container_width=True)
+        
+    else:    
+        tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
+            ["Create New Batch", "Unprocessed Batches", "Processed Batches"])
+       
+            
     with tabCreateNewBatch:
-        st.dataframe(df_user, use_container_width=True)
+        #st.dataframe(df_user, use_container_width=True)
         uploaded_files = st.file_uploader("Upload PDF Files", type=["pdf"], accept_multiple_files=True)
         st.button("Create New Batch", on_click=createNewBatch, args=(session,), use_container_width=False)
         
