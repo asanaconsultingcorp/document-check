@@ -78,20 +78,32 @@ BEGIN
         current_organization_id := record_loop1.ORGANIZATION_ID;
         current_batch_path := record_loop1.BATCH_PATH;
 
-        
+        sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER
+            SET PROCESSED_START_DATE = CURRENT_TIMESTAMP(), BATCH_HEADER_STATUS_CODE=''I''
+            WHERE ID = ''' || current_batch_header_id || ''';';
+        EXECUTE IMMEDIATE :sql_query;
+
         OPEN c2 using (:current_batch_header_id);        
         FOR record_loop2 in c2 DO
             current_batch_detail_id := record_loop2.BATCH_DETAIL_ID;
             current_batch_file_name := record_loop2.FILE_NAME;
 
             sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_DETAIL 
-                SET PROCESSED_DATE = CURRENT_TIMESTAMP(), BATCH_DETAIL_STATUS_CODE=''P''
+                SET PROCESSED_START_DATE = CURRENT_TIMESTAMP(), BATCH_DETAIL_STATUS_CODE=''I''
+                WHERE ID = ''' || current_batch_detail_id || ''';';
+            EXECUTE IMMEDIATE :sql_query;
+
+            
+
+
+            sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_DETAIL 
+                SET PROCESSED_END_DATE = CURRENT_TIMESTAMP(), BATCH_DETAIL_STATUS_CODE=''P''
                 WHERE ID = ''' || current_batch_detail_id || ''';';
             EXECUTE IMMEDIATE :sql_query;
         END FOR;
 
         sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER
-            SET PROCESSED_DATE = CURRENT_TIMESTAMP(), BATCH_HEADER_STATUS_CODE=''P''
+            SET PROCESSED_END_DATE = CURRENT_TIMESTAMP(), BATCH_HEADER_STATUS_CODE=''P''
             WHERE ID = ''' || current_batch_header_id || ''';';
         EXECUTE IMMEDIATE :sql_query;
     
