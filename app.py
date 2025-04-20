@@ -101,13 +101,14 @@ def createNewBatch(_session):
  
     numberfiles = len(uploaded_files)
     if  numberfiles > 0:
+        #st.write("Select Model Type: " + selected_batch_header_model_type)
         new_batch_header_id = uuid.uuid4()
         new_batch_name =  str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
         new_batch_path = str(datetime.today().strftime('%Y%m%d')) + "/" + str(st.session_state.organization_id) + "/" + new_batch_name
                 
         query = """
-            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
-            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', '""" + new_batch_path + """', 'U', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
+            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_MODEL_TYPE_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
+            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', '""" + new_batch_path + """', 'U', '""" + selected_batch_header_model_type + """', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
             """
         #st.write(query)
         utils.sqlQuery(_session, query)
@@ -172,6 +173,19 @@ if session is not None:
             
     with tabCreateNewBatch:
         #st.dataframe(df_user, use_container_width=True)
+        
+        # Create a dropdown list of Batch Model Types
+        # query all BHMTs
+        df_bhmt = utils.getDataFrame(session, f"SELECT BATCH_HEADER_MODEL_TYPE_CODE, BATCH_HEADER_MODEL_TYPE_NAME FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_MODEL_TYPE WHERE ACTIVE_FLAG='Y'")
+        
+        # make lists of codes and names, then combine into a dictionary containing each record (code/name pair)
+        df_bhmt_codes = df_bhmt['BATCH_HEADER_MODEL_TYPE_CODE'].to_numpy().tolist();
+        df_bhmt_names = df_bhmt['BATCH_HEADER_MODEL_TYPE_NAME'].to_numpy().tolist();
+        df_bhmt_codes_names_dict = dict(zip(df_bhmt_codes, df_bhmt_names))
+        
+        #implement lambda function. code is the value, name is the label for each option
+        selected_batch_header_model_type = st.selectbox("Select a Document Model", df_bhmt_codes_names_dict.keys(), format_func=lambda x:df_bhmt_codes_names_dict[x])
+        
         uploaded_files = st.file_uploader("Upload PDF Files", type=["pdf"], accept_multiple_files=True)
         st.button("Create New Batch", on_click=createNewBatch, args=(session,), use_container_width=False)
         
