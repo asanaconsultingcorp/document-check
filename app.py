@@ -49,6 +49,8 @@ def initializeSessionState():
         st.session_state.organization_id = "-1"
     if 'organization_name' not in st.session_state:
         st.session_state.organization_name = ""
+    if 'current_message' not in st.session_state:
+        st.session_state.current_message = ""
 
 def destroySessionState(_session):
     st.session_state.createNewBatchButtonClicked = False
@@ -57,6 +59,8 @@ def destroySessionState(_session):
     st.session_state.is_admin = "N"
     st.session_state.organization_id = "-1"
     st.session_state.organization_name = ""
+    st.session_state.current_message = ""
+    
     _session.close()
     _session = None    
     streamlit_js_eval(js_expressions="parent.window.location.reload()")
@@ -101,14 +105,14 @@ def createNewBatch(_session):
  
     numberfiles = len(uploaded_files)
     if  numberfiles > 0:
-        #st.write("Select Model Type: " + selected_batch_header_model_type)
+        #st.write("Select Model: " + selected_batch_header_model)
         new_batch_header_id = uuid.uuid4()
         new_batch_name =  str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
         new_batch_path = str(datetime.today().strftime('%Y%m%d')) + "/" + str(st.session_state.organization_id) + "/" + new_batch_name
                 
         query = """
-            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_MODEL_TYPE_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
-            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', '""" + new_batch_path + """', 'U', '""" + selected_batch_header_model_type + """', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
+            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_MODEL_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
+            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', '""" + new_batch_path + """', 'U', '""" + selected_batch_header_model + """', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
             """
         #st.write(query)
         utils.sqlQuery(_session, query)
@@ -137,7 +141,7 @@ with st.sidebar:
         
     hasUsername = session is not None and username is not None and len(username) > 0
     if hasUsername:
-        df_user = utils.getDataFrame(session, f"select user_id, user_name, is_admin, organization_id, organization_name from DOC_AI_DB.SECURITY_SCHEMA.USERS_ORGANIZATIONS_VIEW where user_name='{username}'")
+        df_user = utils.getDataFrame(session, f"SELECT USER_ID, USER_NAME, IS_ADMIN, ORGANIZATION_ID, ORGANIZATION_NAME FROM DOC_AI_DB.SECURITY_SCHEMA.USERS_ORGANIZATIONS_VIEW WHERE USER_NAME='{username}'")
                 
         if df_user.shape[0] > 0:
             st.session_state.user_id = df_user.iloc[0, 0]
@@ -156,72 +160,86 @@ with st.sidebar:
             st.button("Logout", on_click=destroySessionState, args=(session,), use_container_width=False)
         else:
             st.write("Organization missing")
-            
-if session is not None:
     
-    if st.session_state.is_admin == 'Y':
-        tabAdmin, tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
-            ["Administration", "Create New Batch", "Unprocessed Batches", "Processed Batches"])
+
+if st.session_state.organization_id != "-1" and st.session_state.organization_id is not None:
         
-        with tabAdmin:
-            st.dataframe(df_user, use_container_width=True)
-        
-    else:    
-        tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
-            ["Create New Batch", "Unprocessed Batches", "Processed Batches"])
-       
             
-    with tabCreateNewBatch:
-        #st.dataframe(df_user, use_container_width=True)
+    if session is not None:
         
-        # Create a dropdown list of Batch Model Types
-        # query all BHMTs
-        df_bhmt = utils.getDataFrame(session, f"SELECT BATCH_HEADER_MODEL_TYPE_CODE, BATCH_HEADER_MODEL_TYPE_NAME FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_MODEL_TYPE WHERE ACTIVE_FLAG='Y'")
+        if st.session_state.is_admin == 'Y':
+            tabAdmin, tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
+                ["Administration", "Create New Batch", "Unprocessed Batches", "Processed Batches"])
+            
+            with tabAdmin:
+                st.session_state.current_message = ""
+                st.dataframe(df_user, use_container_width=True)
+            
+        else:    
+            tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
+                ["Create New Batch", "Unprocessed Batches", "Processed Batches"])
         
-        # make lists of codes and names, then combine into a dictionary containing each record (code/name pair)
-        df_bhmt_codes = df_bhmt['BATCH_HEADER_MODEL_TYPE_CODE'].to_numpy().tolist();
-        df_bhmt_names = df_bhmt['BATCH_HEADER_MODEL_TYPE_NAME'].to_numpy().tolist();
-        df_bhmt_codes_names_dict = dict(zip(df_bhmt_codes, df_bhmt_names))
+                
+        with tabCreateNewBatch:
+            st.session_state.current_message = ""
+            #st.dataframe(df_user, use_container_width=True)
+            
         
-        #implement lambda function. code is the value, name is the label for each option
-        selected_batch_header_model_type = st.selectbox("Select a Document Model", df_bhmt_codes_names_dict.keys(), format_func=lambda x:df_bhmt_codes_names_dict[x])
-        
-        uploaded_files = st.file_uploader("Upload PDF Files", type=["pdf"], accept_multiple_files=True)
-        st.button("Create New Batch", on_click=createNewBatch, args=(session,), use_container_width=False)
-        
-        if st.session_state.createNewBatchButtonClicked:
-        # The message and nested widget will remain on the page
-            numfiles = len(uploaded_files)
-            if  numfiles > 0:
-                st.write("Batch has " + str(numfiles) + " files")
-            else:
-                st.write("No files selected. Please upload at least one file")
+            # Create a dropdown list of Batch Model Types
+            # query all BHMs
+            df_bhm = utils.getDataFrame(session, f"SELECT BATCH_HEADER_MODEL_CODE, BATCH_HEADER_MODEL_LABEL FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_MODEL WHERE ACTIVE_FLAG='Y'")
+            
+            # make lists of codes and labels, then combine into a dictionary containing each record (code/label pair)
+            df_bhm_codes = df_bhm['BATCH_HEADER_MODEL_CODE'].to_numpy().tolist();
+            df_bhm_labels = df_bhm['BATCH_HEADER_MODEL_LABEL'].to_numpy().tolist();
+            df_bhm_codes_labels_dict = dict(zip(df_bhm_codes, df_bhm_labels))
+            
+            #implement lambda function. code is the value, name is the label for each option
+            selected_batch_header_model = st.selectbox("Select a Document Model", df_bhm_codes_labels_dict.keys(), format_func=lambda x:df_bhm_codes_labels_dict[x])
+            
+            uploaded_files = st.file_uploader("Upload PDF Files", type=["pdf"], accept_multiple_files=True)
+            st.button("Create New Batch", on_click=createNewBatch, args=(session,), use_container_width=False)
+            
+            if st.session_state.createNewBatchButtonClicked:
+            # The message and nested widget will remain on the page
+                numfiles = len(uploaded_files)
+                if  numfiles > 0:
+                    st.session_state.current_message = "New Batch has " + str(numfiles) + " files"
+                else:
+                    st.session_state.current_message = "No files selected. Please upload at least one file"
+                st.write(st.session_state.current_message)
+                st.session_state.createNewBatchButtonClicked = False
+                st.session_state.current_message = ""
+            
+        with tabUnprocessedBatches:
+            st.session_state.current_message = ""
             st.session_state.createNewBatchButtonClicked = False
-        
-    with tabUnprocessedBatches:
-        st.session_state.createNewBatchButtonClicked = False
-        
-        query = """
-            SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
-            FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
-            WHERE BATCH_HEADER_STATUS_CODE='U'
-            AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
-            ORDER BY BATCH_CREATED_ON DESC
-            """
             
-        df_records = utils.sqlQuery(session, query)
-        st.write(df_records)
-        
-    with tabProcessedBatches:
-        st.session_state.createNewBatchButtonClicked = False
-        
-        query = """
-            SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
-            FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
-            WHERE BATCH_HEADER_STATUS_CODE='P'
-            AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
-            ORDER BY BATCH_CREATED_ON DESC
-            """
+            query = """
+                SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_MODEL_LABEL, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
+                FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
+                WHERE BATCH_HEADER_STATUS_CODE='U'
+                AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
+                ORDER BY BATCH_CREATED_ON DESC
+                """
+                
+            df_records = utils.sqlQuery(session, query)
+            print(df_records)
+            st.write(df_records)
             
-        df_records = utils.sqlQuery(session, query)
-        st.write(df_records)
+        with tabProcessedBatches:
+            st.session_state.current_message = ""
+            st.session_state.createNewBatchButtonClicked = False
+            
+            query = """
+                SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_MODEL_LABEL, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
+                FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
+                WHERE BATCH_HEADER_STATUS_CODE='P'
+                AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
+                ORDER BY BATCH_CREATED_ON DESC
+                """
+                
+            df_records = utils.sqlQuery(session, query)
+            st.write(df_records)
+else:
+    st.write("Please login to create a batch")
