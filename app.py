@@ -30,7 +30,34 @@ css = '''
         float: right;
         padding-top: 0;
     }
-
+    [data-testid='stTextInput'] {
+        width: 300px;
+    }
+    [data-testid='stTextInput'] section {
+        padding: 0;
+        float: left;
+    }
+    [data-testid='stTextInput'] section > input + div {
+        display: none;
+    }
+    [data-testid='stTextInput'] section + div {
+        float: right;
+        padding-top: 0;
+    }
+	[data-testid='stSelectbox'] {
+        width: 300px;
+    }
+    [data-testid='stSelectbox'] section {
+        padding: 0;
+        float: left;
+    }
+    [data-testid='stSelectbox'] section > input + div {
+        display: none;
+    }
+    [data-testid='stSelectbox'] section + div {
+        float: right;
+        padding-top: 0;
+    }
 </style>
 '''
 
@@ -102,24 +129,28 @@ def createNewBatchDetail(_session, batch_header_id, thisFile):
 
 def createNewBatch(_session):
     st.session_state.createNewBatchButtonClicked = True
- 
+    
     numberfiles = len(uploaded_files)
     if  numberfiles > 0:
         #st.write("Select Model: " + selected_batch_header_model)
+        
         new_batch_header_id = uuid.uuid4()
-        new_batch_name =  str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
-        new_batch_path = str(datetime.today().strftime('%Y%m%d')) + "/" + str(st.session_state.organization_id) + "/" + new_batch_name
-                
+        new_system_batch_name =  str(datetime.today().strftime('%Y%m%d_%H%M%S_%f')) + "_BATCH"
+        new_batch_path = str(datetime.today().strftime('%Y%m%d')) + "/" + str(st.session_state.organization_id) + "/" + new_system_batch_name
+                        
+        friendly_batch_name = new_system_batch_name
+        
         query = """
-            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_MODEL_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
-            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + new_batch_name + """', '""" + new_batch_path + """', 'U', '""" + selected_batch_header_model + """', '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
+            INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, USER_BATCH_NAME, SYSTEM_BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_MODEL_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
+            VALUES('""" + str(new_batch_header_id) + """', '""" + str(st.session_state.organization_id) + """', '""" + friendly_batch_name + """', '""" + new_system_batch_name + """', '""" + new_batch_path + """', 'U', '""" + selected_batch_header_model + """', 
+                '""" + str(st.session_state.user_id) + """', '""" + str(st.session_state.user_id) + """', CURRENT_USER(), CURRENT_USER())
             """
         #st.write(query)
         utils.sqlQuery(_session, query)
         
         for uploaded_file in uploaded_files:
             createNewBatchDetail(_session, new_batch_header_id, uploaded_file)
-            #st.write("New Batch Name: " + new_batch_name)
+            #st.write("New Batch Name: " + new_system_batch_name)
             putFileInStage(_session, new_batch_path, uploaded_file)
             
             
@@ -154,19 +185,18 @@ with st.sidebar:
             st.write("User Name: " + st.session_state.user_name)
             st.write("Organization Name: " + st.session_state.organization_name)
             st.write("Is Admin: " + st.session_state.is_admin)
-            #st.write("User ID: " + st.session_state.user_id)
-            #st.write("Organization ID: " + st.session_state.organization_id)
+            
+            if st.session_state.is_admin == 'Y':
+                st.write("User ID: " + st.session_state.user_id)
+                st.write("Organization ID: " + st.session_state.organization_id)
             
             st.button("Logout", on_click=destroySessionState, args=(session,), use_container_width=False)
         else:
             st.write("Organization missing")
     
 
-if st.session_state.organization_id != "-1" and st.session_state.organization_id is not None:
-        
-            
-    if session is not None:
-        
+if st.session_state.organization_id != "-1" and st.session_state.organization_id is not None: 
+    if session is not None:        
         if st.session_state.is_admin == 'Y':
             tabAdmin, tabCreateNewBatch, tabUnprocessedBatches, tabProcessedBatches = st.tabs(
                 ["Administration", "Create New Batch", "Unprocessed Batches", "Processed Batches"])
@@ -185,6 +215,10 @@ if st.session_state.organization_id != "-1" and st.session_state.organization_id
             #st.dataframe(df_user, use_container_width=True)
             
         
+            # Create a text box for a user inputted friendly batch name
+            #friendly_batch_name = st.text_input(label="Enter a Batch Name")
+            #friendly_batch_name = st.selectbox("Enter a Batch Name", "['Option1','Option2]")
+
             # Create a dropdown list of Batch Model Types
             # query all BHMs
             df_bhm = utils.getDataFrame(session, f"SELECT BATCH_HEADER_MODEL_CODE, BATCH_HEADER_MODEL_LABEL FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_MODEL WHERE ACTIVE_FLAG='Y'")
@@ -216,7 +250,7 @@ if st.session_state.organization_id != "-1" and st.session_state.organization_id
             st.session_state.createNewBatchButtonClicked = False
             
             query = """
-                SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_MODEL_LABEL, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
+                SELECT USER_BATCH_NAME, SYSTEM_BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_MODEL_LABEL, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
                 FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
                 WHERE BATCH_HEADER_STATUS_CODE='U'
                 AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
@@ -224,7 +258,6 @@ if st.session_state.organization_id != "-1" and st.session_state.organization_id
                 """
                 
             df_records = utils.sqlQuery(session, query)
-            print(df_records)
             st.write(df_records)
             
         with tabProcessedBatches:
@@ -232,7 +265,7 @@ if st.session_state.organization_id != "-1" and st.session_state.organization_id
             st.session_state.createNewBatchButtonClicked = False
             
             query = """
-                SELECT BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_MODEL_LABEL, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
+                SELECT USER_BATCH_NAME, SYSTEM_BATCH_NAME, ORGANIZATION_NAME, BATCH_COUNT, BATCH_HEADER_MODEL_LABEL, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_STATUS
                 FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
                 WHERE BATCH_HEADER_STATUS_CODE='P'
                 AND ORGANIZATION_ID = '""" + str(st.session_state.organization_id) + """'
