@@ -92,7 +92,7 @@ def destroySessionState(_session):
     _session = None    
     streamlit_js_eval(js_expressions="parent.window.location.reload()")
 
-def putFileInStage(_session, stagePath, thisFile):
+def putFileInStage(_session, stageName, stagePath, thisFile):
     
     bytes_data = thisFile.read()
     filename = thisFile.name
@@ -106,7 +106,7 @@ def putFileInStage(_session, stagePath, thisFile):
     #st.write(stageQuery)
     #utils.sqlQuery(_session, stageQuery)
     
-    stage_location = '@DOC_AI_STAGE/' + stagePath + '/' + filename
+    stage_location = '@' + stageName + '/' + stagePath + '/' + filename
     #st.write(stage_location)    
     FileOperation(_session).put_stream(input_stream=thisFile, stage_location=stage_location, auto_compress=False)
 
@@ -139,6 +139,12 @@ def createNewBatch(_session):
         new_batch_path = str(datetime.today().strftime('%Y%m%d')) + "/" + str(st.session_state.organization_id) + "/" + new_system_batch_name
                         
         friendly_batch_name = new_system_batch_name
+                
+        df_stage_name = utils.getDataFrame(session, f"SELECT SNOWFLAKE_STAGE_DATABASE, SNOWFLAKE_STAGE_SCHEMA, SNOWFLAKE_STAGE_NAME FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_MODEL WHERE BATCH_HEADER_MODEL_CODE='{selected_batch_header_model}'")
+        new_snowflake_stage_database = df_stage_name.iloc[0, 0]
+        new_snowflake_stage_schema = df_stage_name.iloc[0, 1]
+        new_snowflake_stage_name = df_stage_name.iloc[0, 2]
+        fully_qualified_snowflake_stage_name = new_snowflake_stage_database + '.' + new_snowflake_stage_schema + '.' + new_snowflake_stage_name
         
         query = """
             INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER(ID, ORGANIZATION_ID, USER_BATCH_NAME, SYSTEM_BATCH_NAME, BATCH_PATH, BATCH_HEADER_STATUS_CODE, BATCH_HEADER_MODEL_CODE, APP_USER_ID_CREATED_BY, APP_USER_ID_MODIFIED_BY, CREATED_BY, MODIFIED_BY)
@@ -151,7 +157,12 @@ def createNewBatch(_session):
         for uploaded_file in uploaded_files:
             createNewBatchDetail(_session, new_batch_header_id, uploaded_file)
             #st.write("New Batch Name: " + new_system_batch_name)
-            putFileInStage(_session, new_batch_path, uploaded_file)
+            putFileInStage(_session, fully_qualified_snowflake_stage_name, new_batch_path, uploaded_file)
+            
+        query = """
+            ALTER STAGE IF EXISTS """ + str(fully_qualified_snowflake_stage_name) + """ REFRESH;
+            """
+        utils.sqlQuery(_session, query)
             
             
 initializeSessionState()
