@@ -44,34 +44,38 @@ USE SCHEMA SCHEDULED_TASKS;
 
 CREATE OR REPLACE TASK DOC_AI_DB.SCHEDULED_TASKS.PROCESS_BATCHES_TASK
     WAREHOUSE = 'DOC_AI_WH'
-    SCHEDULE = 'USING CRON */2 * * * * UTC'
+    SCHEDULE = 'USING CRON 5 * * * * UTC'
 AS
 DECLARE
     scheduled_task_header_uuid STRING;
-    scheduled_task_detail_uuid STRING;
+    --scheduled_task_detail_uuid STRING;
     sql_query STRING;
-    sql_query2 STRING;
+    --sql_query2 STRING;
 BEGIN
     --INSERT new SCHEDULED_TASK_HEADER record
     scheduled_task_header_uuid := UUID_STRING();
     sql_query := 'INSERT INTO DOC_AI_DB.SCHEDULED_TASKS.SCHEDULED_TASK_HEADER(ID, START_DATE_TIME, JOB_NAME, CREATED_BY, MODIFIED_BY) 
         VALUES (''' || scheduled_task_header_uuid || ''', CURRENT_TIMESTAMP(), CONCAT(''PROCESS_BATCHES_'',TO_CHAR(CURRENT_TIMESTAMP(), ''YYYYMMDD_HH24MISS_FF3'')), 
         CURRENT_USER(), CURRENT_USER());';
-    sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-    EXECUTE IMMEDIATE :sql_query2;
+    EXECUTE IMMEDIATE :sql_query;
+    --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+    --EXECUTE IMMEDIATE :sql_query2;
 
+    CALL DOC_AI_DB.SCHEDULED_TASKS.PROCESS_BATCHES();
 
     --INSERT new SCHEDULED_TASK_DETAIL record
-    scheduled_task_detail_uuid := UUID_STRING();
-    sql_query := 'INSERT INTO DOC_AI_DB.SCHEDULED_TASKS.SCHEDULED_TASK_DETAIL(ID, SCHEDULED_TASK_HEADER_ID, BATCH_HEADER_ID, CREATED_BY, MODIFIED_BY) 
-        VALUES (''' || scheduled_task_detail_uuid || ''', ''' || scheduled_task_header_uuid || ''', ''' || current_batch_header_id || ''', CURRENT_USER(), CURRENT_USER())';
-    sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-    EXECUTE IMMEDIATE :sql_query2;
+    --scheduled_task_detail_uuid := UUID_STRING();
+    --sql_query := 'INSERT INTO DOC_AI_DB.SCHEDULED_TASKS.SCHEDULED_TASK_DETAIL(ID, SCHEDULED_TASK_HEADER_ID, BATCH_HEADER_ID, CREATED_BY, MODIFIED_BY) 
+    --    VALUES (''' || scheduled_task_detail_uuid || ''', ''' || scheduled_task_header_uuid || ''', ''' || current_batch_header_id || ''', CURRENT_USER(), CURRENT_USER())';
+    --EXECUTE IMMEDIATE :sql_query;
+    --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+    --EXECUTE IMMEDIATE :sql_query2;
 
     
     sql_query := 'UPDATE DOC_AI_DB.SCHEDULED_TASKS.SCHEDULED_TASK_HEADER SET END_DATE_TIME=CURRENT_TIMESTAMP() WHERE ID = ''' || scheduled_task_header_uuid || '''';
-    sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-    EXECUTE IMMEDIATE :sql_query2;
+    EXECUTE IMMEDIATE :sql_query;
+    --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+    --EXECUTE IMMEDIATE :sql_query2;
 END;
 
 CREATE OR REPLACE PROCEDURE DOC_AI_DB.SCHEDULED_TASKS.PROCESS_BATCHES()
@@ -81,7 +85,7 @@ AS
 DECLARE
     analysis_uuid STRING;
     sql_query STRING;
-    sql_query2 STRING;
+    --sql_query2 STRING;
 
     c1 CURSOR FOR SELECT BATCH_HEADER_ID, ORGANIZATION_ID, BATCH_PATH
         FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_ORGANIZATION_VIEW
@@ -89,10 +93,10 @@ DECLARE
         ORDER BY BATCH_HEADER_ID, ORGANIZATION_ID, BATCH_PATH;
 
     c2 CURSOR FOR SELECT BATCH_HEADER_ID, BATCH_DETAIL_ID, BATCH_PATH, FILE_NAME, 
-            SNOWFLAKE_STAGE_NAME, SNOWFLAKE_MODEL_DATABASE, 
-            SNOWFLAKE_MODEL_SCHEMA, SNOWFLAKE_MODEL_NAME
+            SNOWFLAKE_STAGE_DATABASE, SNOWFLAKE_STAGE_SCHEMA, SNOWFLAKE_STAGE_NAME,
+            SNOWFLAKE_MODEL_DATABASE, SNOWFLAKE_MODEL_SCHEMA, SNOWFLAKE_MODEL_NAME
         FROM DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER_DETAIL_ORGANIZATION_VIEW
-        WHERE BATCH_HEADER_STATUS_CODE = 'U'
+        WHERE BATCH_DETAIL_STATUS_CODE = 'U'
         AND BATCH_HEADER_ID = ?
         ORDER BY BATCH_HEADER_ID, BATCH_PATH, FILE_NAME;
     
@@ -102,7 +106,12 @@ DECLARE
 
     current_batch_detail_id STRING;
     current_file_name STRING;
+    
+    current_snowflake_stage_database STRING;
+    current_snowflake_stage_schema STRING;
+    current_snowflake_stage_database_schema STRING;
     current_snowflake_stage_name STRING;
+    
     current_snowflake_model_database STRING;
     current_snowflake_model_schema STRING;
     current_snowflake_model_database_schema STRING;
@@ -120,7 +129,7 @@ BEGIN
     --CALL DOC_AI_DB.SCHEDULED_TASKS.INSERT_SCHEDULED_TASK_HEADER();
     --select $1 into :scheduled_task_header_uuid from table(result_scan(last_query_id()));
 
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY;';
+    --EXECUTE IMMEDIATE 'TRUNCATE TABLE DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY;';
     
     files_processed := 0;
     files_successful := 0;
@@ -135,8 +144,9 @@ BEGIN
         sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER
             SET PROCESSED_START_DATE = CURRENT_TIMESTAMP(), BATCH_HEADER_STATUS_CODE=''I''
             WHERE ID = ''' || current_batch_header_id || ''';';
-        sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-        EXECUTE IMMEDIATE :sql_query2;        
+        EXECUTE IMMEDIATE :sql_query;
+        --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+        --EXECUTE IMMEDIATE :sql_query2;
 
         OPEN c2 using (:current_batch_header_id);     
         FOR record_loop2 in c2 DO
@@ -145,27 +155,28 @@ BEGIN
             sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_DETAIL 
                 SET PROCESSED_START_DATE = CURRENT_TIMESTAMP(), BATCH_DETAIL_STATUS_CODE=''I''
                 WHERE ID = ''' || current_batch_detail_id || ''';';
-            sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-            EXECUTE IMMEDIATE :sql_query2;
+            EXECUTE IMMEDIATE :sql_query;
+            --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+            --EXECUTE IMMEDIATE :sql_query2;
             
             current_batch_path := record_loop2.BATCH_PATH;
             current_file_name := record_loop2.FILE_NAME;
 
+            current_snowflake_stage_database := record_loop2.SNOWFLAKE_STAGE_DATABASE;
+            current_snowflake_stage_schema := record_loop2.SNOWFLAKE_STAGE_SCHEMA;
+            current_snowflake_stage_database_schema := current_snowflake_stage_database || '.' || current_snowflake_stage_schema;
             current_snowflake_stage_name := record_loop2.SNOWFLAKE_STAGE_NAME;
+
             current_snowflake_model_database := record_loop2.SNOWFLAKE_MODEL_DATABASE;
             current_snowflake_model_schema := record_loop2.SNOWFLAKE_MODEL_SCHEMA;
             current_snowflake_model_database_schema := current_snowflake_model_database || '.' || current_snowflake_model_schema;
             current_snowflake_model_name := record_loop2.SNOWFLAKE_MODEL_NAME;
 
             current_full_path_file_name := current_batch_path || '/' || current_file_name;
-            current_full_snowflake_stage_name := '@' || current_snowflake_stage_name;
+            current_full_snowflake_stage_name := '@' || current_snowflake_stage_database_schema || '.' || current_snowflake_stage_name;
             current_full_snowflake_model_name := current_snowflake_model_database_schema || '.' || current_snowflake_model_name;
 
             analysis_uuid := UUID_STRING();
-
-            sql_query := 'USE SCHEMA ' || current_snowflake_model_database_schema || ';';
-            sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-            EXECUTE IMMEDIATE :sql_query2;
 
             sql_query := '
                 INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.ANALYSIS(ID, FILE_NAME, FILE_SIZE, LAST_MODIFIED, SNOWFLAKE_FILE_URL, PREDICT, CREATED_BY, MODIFIED_BY)
@@ -183,22 +194,25 @@ BEGIN
                     current_full_snowflake_model_name || '!PREDICT(GET_PRESIGNED_URL(' || current_full_snowflake_stage_name || ', FILE_NAME), 1) AS PREDICT,
                     CURRENT_USER(), CURRENT_USER()
                 FROM CTE_BASELINE;';
-            sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-            EXECUTE IMMEDIATE :sql_query2;
+            EXECUTE IMMEDIATE :sql_query;
+            --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+            --EXECUTE IMMEDIATE :sql_query2;
 
             sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_DETAIL 
                 SET PROCESSED_END_DATE = CURRENT_TIMESTAMP(), BATCH_DETAIL_STATUS_CODE=''P''
                 WHERE ID = ''' || current_batch_detail_id || ''';';
-            sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-            EXECUTE IMMEDIATE :sql_query2;
+            EXECUTE IMMEDIATE :sql_query;
+            --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+            --EXECUTE IMMEDIATE :sql_query2;
         END FOR;
         CLOSE C2;
 
         sql_query := 'UPDATE DOC_AI_DB.STREAMLIT_SCHEMA.BATCH_HEADER
             SET PROCESSED_END_DATE = CURRENT_TIMESTAMP(), BATCH_HEADER_STATUS_CODE=''P''
             WHERE ID = ''' || current_batch_header_id || ''';';
-        sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
-        EXECUTE IMMEDIATE :sql_query2;
+        EXECUTE IMMEDIATE :sql_query;
+        --sql_query2 := 'INSERT INTO DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY(SQL_QUERY) VALUES(''' || REPLACE(sql_query,'''', '''''') || ''')';
+        --EXECUTE IMMEDIATE :sql_query2;
     
     END FOR;
     CLOSE C1;
@@ -210,3 +224,4 @@ ALTER TASK DOC_AI_DB.SCHEDULED_TASKS.PROCESS_BATCHES_TASK RESUME;
 ALTER TASK DOC_AI_DB.SCHEDULED_TASKS.PROCESS_BATCHES_TASK SUSPEND;
 --CALL DOC_AI_DB.SCHEDULED_TASKS.PROCESS_BATCHES()
 --SELECT * FROM DOC_AI_DB.STREAMLIT_SCHEMA.SQL_HISTORY ORDER BY CREATED_ON;
+--SELECT * FROM DOC_AI_DB.STREAMLIT_SCHEMA.ANALYSIS ORDER BY CREATED_ON;
